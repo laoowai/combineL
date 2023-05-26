@@ -1,0 +1,59 @@
+//@version=4
+study("[blackcat] L2 Banker Fund Trajectory for Indice with RSI, MFI, CCI", overlay=false, max_bars_back=5000)
+
+//functions
+xrf(values, length) =>
+    r_val = float(na)
+    if length >= 1
+        for i = 0 to length by 1
+            if na(r_val) or not na(values[i])
+                r_val  :=  values[i]
+    r_val
+
+xsa(src,len,wei) =>
+    sumf = 0.0
+    ma = 0.0
+    out = 0.0
+    sumf  :=  nz(sumf[1]) - nz(src[len]) + src
+    ma  :=  na(src[len]) ? na : sumf/len
+    out  :=  na(out[1]) ? ma : (src*wei+out[1]*(len-wei))/len
+    out
+
+// inputs
+n1 = input(3, title="n1", type=input.integer, minval = 1)
+n2 = input(6, title="n2", type=input.integer, minval = 1)
+
+// calculations
+b1 = (high+low+close)/3
+b2 = highest(b1,15)
+b3 = lowest(b1,15)
+b4 = b2-b3
+b5 = sma((b1-b3)/b4,2)*100
+plot(b5, color=color.new(color.blue,60), style=plot.style_area, linewidth=2)
+
+// Adding RSI, MFI, and CCI as percentage of their respective ranges
+rsi_val = rsi(close, 14)
+rsi_pct = (rsi_val - min(rsi_val)) / (max(rsi_val) - min(rsi_val)) * 100
+plot(rsi_pct, color=color.new(color.red,60), style=plot.style_line, linewidth=1)
+
+mfi_val = mfi(high, low, close, volume, 14)
+mfi_pct = (mfi_val - min(mfi_val)) / (max(mfi_val) - min(mfi_val)) * 100
+plot(mfi_pct, color=color.new(color.green,60), style=plot.style_line, linewidth=1)
+
+cci_val = cci(high, low, close, 14)
+cci_pct = (cci_val - min(cci_val)) / (max(cci_val) - min(cci_val)) * 100
+plot(cci_pct, color=color.new(color.purple,60), style=plot.style_line, linewidth=1)
+
+// Trading signals
+long = crossover(cci_pct, b5) 
+short = crossunder(cci_pct, b5)
+
+// Plots cross labels
+l = short ? 
+       label.new (bar_index, cci_pct, "SELL", color=color.new(color.red,50), textcolor=color.white, style=label.style_labeldown, yloc=yloc.price, size=size.small) :
+       long ?
+           label.new (bar_index, cci_pct, "BUY", color=color.new(color.green, 50), textcolor=color.white, style=label.style_labelup, yloc=yloc.price, size=size.small) :
+           na
+
+alertcondition(condition=long, title="Buy", message="Buy")
+alertcondition(condition=short, title="Sell", message="Sell")
